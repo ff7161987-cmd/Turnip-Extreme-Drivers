@@ -42,7 +42,7 @@ prepare_workdir(){
 build_lib_for_android(){
     cd "$workdir/$srcfolder"
     git checkout "origin/$1"
-    git apply /home/ubuntu/driver_analysis/Adreno-Tools-Drivers-26.2.0-R4/patches/*.patch || true
+    git apply ../../patches/*.patch || true
 
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.c || true
