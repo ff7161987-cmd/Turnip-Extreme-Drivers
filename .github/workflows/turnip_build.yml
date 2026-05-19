@@ -38,9 +38,9 @@ jobs:
           unzip ../../turnip_workdir/turnip-gen8-*.zip
           zip -9 ../../Turnip-Extreme-A8xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
           
-          # Extrair driver 6xx/7xx (main)
+          # Extrair driver 6xx/7xx (master)
           cd ../main
-          unzip ../../turnip_workdir/turnip-main-*.zip
+          unzip ../../turnip_workdir/turnip-master-*.zip
           zip -9 ../../Turnip-Extreme-A6xx-A7xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
 
       - name: Upload Artifacts

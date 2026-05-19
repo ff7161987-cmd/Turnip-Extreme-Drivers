@@ -13,7 +13,7 @@ run_all(){
     check_deps
     prepare_workdir
     build_lib_for_android gen8
-    build_lib_for_android main
+    build_lib_for_android master
 }
 
 check_deps(){
