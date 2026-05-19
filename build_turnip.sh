@@ -64,7 +64,7 @@ build_lib_for_android(){
     export STRIP=llvm-strip
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
-    export LDFLAGS="-fuse-ld=lld -Wl,--O3 -Wl,--as-needed"
+    export LDFLAGS="-fuse-ld=lld -Wl,--as-needed"
     export CFLAGS="-O3 -ffast-math -fno-plt -fno-semantic-interposition"
     export CXXFLAGS="-O3 -ffast-math -fno-plt -fno-semantic-interposition"
 
