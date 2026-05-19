@@ -12,8 +12,8 @@ BUILD_VERSION="${BUILD_VERSION:-1.0}"
 run_all(){
     check_deps
     prepare_workdir
+    # Compilando para Adreno 6xx/7xx usando o branch gen8 (que é o padrão e suporta ambos)
     build_lib_for_android gen8
-    build_lib_for_android master
 }
 
 check_deps(){
@@ -136,9 +136,9 @@ EOF
     cat <<EOF >"meta.json"
 {
   "schemaVersion": 1,
-  "name": "Turnip Gen8 V29",
-  "description": "A8xx support",
-  "author": "stevenmx",
+  "name": "Turnip Extreme Performance",
+  "description": "Optimized for A6xx/A7xx/A8xx",
+  "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
   "driverVersion": "Vulkan 1.4.348",

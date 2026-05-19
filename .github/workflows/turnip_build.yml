@@ -31,17 +31,12 @@ jobs:
 
       - name: Prepare Final Package
         run: |
-          mkdir -p final_package/gen8 final_package/main
+          mkdir -p final_package/gen8
           
-          # Extrair driver 8xx (gen8)
+          # Extrair driver Adreno 6xx/7xx/8xx (branch gen8)
           cd final_package/gen8
           unzip ../../turnip_workdir/turnip-gen8-*.zip
-          zip -9 ../../Turnip-Extreme-A8xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
-          
-          # Extrair driver 6xx/7xx (master)
-          cd ../main
-          unzip ../../turnip_workdir/turnip-master-*.zip
-          zip -9 ../../Turnip-Extreme-A6xx-A7xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
+          zip -9 ../../Turnip-Extreme-A6xx-A7xx-A8xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
