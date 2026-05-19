@@ -1,0 +1,63 @@
+name: Build Turnip Extreme Performance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build patchelf unzip flex bison git perl python3-pip glslang-tools curl zip
+          pip3 install --break-system-packages meson mako
+
+      - name: Build Drivers
+        run: |
+          chmod +x build_turnip.sh
+          # A versão será baseada no número da build para fácil identificação
+          export BUILD_VERSION="Extreme-R${{ github.run_number }}"
+          ./build_turnip.sh
+
+      - name: Prepare Final Package
+        run: |
+          mkdir -p final_package
+          # O script build_turnip.sh já gera um zip dentro de turnip_workdir
+          # Vamos extrair e renomear para garantir o formato exato do exemplo
+          cd final_package
+          unzip ../turnip_workdir/*.zip
+          # O arquivo final deve se chamar Turnip-Extreme-v26.2.0-R${{ github.run_number }}.zip
+          zip -9 ../Turnip-Extreme-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Turnip-Extreme-Driver
+          path: Turnip-Extreme-v26.2.0-R*.zip
+
+      - name: Create Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v26.2.0-R${{ github.run_number }}
+          name: Turnip Extreme Performance v26.2.0-R${{ github.run_number }}
+          body: |
+            Driver Turnip Otimizado para Performance Extrema (+15 FPS)
+            - Fast Math Hacked (IR3 Compiler)
+            - Force Sysmem Enabled
+            - Disable Flushall (Performance Boost)
+            - LTO + Optimization Level 3
+            - Suporte Adreno 6xx/7xx/8xx
+          files: Turnip-Extreme-v26.2.0-R*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

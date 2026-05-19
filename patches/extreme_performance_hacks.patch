@@ -1,0 +1,15 @@
+diff --git a/src/freedreno/ir3/ir3_compiler.c b/src/freedreno/ir3/ir3_compiler.c
+index 1234567..89abcdef 100644
+--- a/src/freedreno/ir3/ir3_compiler.c
++++ b/src/freedreno/ir3/ir3_compiler.c
+@@ -100,6 +100,10 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
+    compiler->dev_id = dev_id;
+    compiler->gen = fd_dev_gen(dev_id);
+ 
++   /* Extreme Performance Hack: Force unsafe math optimizations */
++   compiler->options.unsafe_math = true;
++   compiler->options.fast_math = true;
++
+    if (compiler->gen >= 6) {
+       compiler->samplers_as_images = true;
+    }
