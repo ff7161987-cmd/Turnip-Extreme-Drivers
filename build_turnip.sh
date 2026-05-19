@@ -13,6 +13,7 @@ run_all(){
     check_deps
     prepare_workdir
     build_lib_for_android gen8
+    build_lib_for_android main
 }
 
 check_deps(){
@@ -146,8 +147,9 @@ EOF
 }
 EOF
 
-    zip -9 "/tmp/a8xx-$1-V${BUILD_VERSION}.zip" libvulkan_freedreno.so meta.json
-    cp "/tmp/a8xx-$1-V${BUILD_VERSION}.zip" "$workdir/"
+    local zip_name="turnip-$1-V${BUILD_VERSION}.zip"
+    zip -9 "/tmp/$zip_name" libvulkan_freedreno.so meta.json
+    cp "/tmp/$zip_name" "$workdir/"
 }
 
 run_all

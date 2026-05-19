@@ -31,19 +31,23 @@ jobs:
 
       - name: Prepare Final Package
         run: |
-          mkdir -p final_package
-          # O script build_turnip.sh já gera um zip dentro de turnip_workdir
-          # Vamos extrair e renomear para garantir o formato exato do exemplo
-          cd final_package
-          unzip ../turnip_workdir/a8xx-*.zip
-          # O arquivo final deve se chamar Turnip-Extreme-v26.2.0-R${{ github.run_number }}.zip
-          zip -9 ../Turnip-Extreme-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
+          mkdir -p final_package/gen8 final_package/main
+          
+          # Extrair driver 8xx (gen8)
+          cd final_package/gen8
+          unzip ../../turnip_workdir/turnip-gen8-*.zip
+          zip -9 ../../Turnip-Extreme-A8xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
+          
+          # Extrair driver 6xx/7xx (main)
+          cd ../main
+          unzip ../../turnip_workdir/turnip-main-*.zip
+          zip -9 ../../Turnip-Extreme-A6xx-A7xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Turnip-Extreme-Driver
-          path: Turnip-Extreme-v26.2.0-R*.zip
+          path: Turnip-Extreme-*.zip
 
       - name: Create Release
         if: github.event_name != 'pull_request'
@@ -58,6 +62,6 @@ jobs:
             - Disable Flushall (Performance Boost)
             - LTO + Optimization Level 3
             - Suporte Adreno 6xx/7xx/8xx
-          files: Turnip-Extreme-v26.2.0-R*.zip
+          files: Turnip-Extreme-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
