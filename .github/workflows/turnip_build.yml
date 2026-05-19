@@ -35,7 +35,7 @@ jobs:
           # O script build_turnip.sh já gera um zip dentro de turnip_workdir
           # Vamos extrair e renomear para garantir o formato exato do exemplo
           cd final_package
-          unzip ../turnip_workdir/*.zip
+          unzip ../turnip_workdir/a8xx-*.zip
           # O arquivo final deve se chamar Turnip-Extreme-v26.2.0-R${{ github.run_number }}.zip
           zip -9 ../Turnip-Extreme-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
 
