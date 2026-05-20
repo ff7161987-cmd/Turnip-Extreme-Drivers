@@ -12,7 +12,7 @@ BUILD_VERSION="${BUILD_VERSION:-1.0}"
 run_all(){
     check_deps
     prepare_workdir
-    # Compilando para Adreno 6xx/7xx usando o branch gen8 (que é o padrão e suporta ambos)
+    # Compilando para Adreno 6xx/7xx/8xx usando o branch gen8
     build_lib_for_android gen8
 }
 
@@ -38,6 +38,18 @@ prepare_workdir(){
     cd "$srcfolder"
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
+
+    # --- HACKS DE PERFORMANCE ---
+    
+    # 1. Forçar TU_DEBUG=HIPRIO e PERF por padrão no código
+    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF);/' src/freedreno/vulkan/tu_device.cc
+
+    # 2. Hack no IR3: Aumentar eficiência de registros (Hardcoded para performance)
+    # Modifica ir3_get_gpu_profile para retornar valores mais agressivos
+    sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
+
+    # 3. Forçar Fast Math e Relaxed Precision no compilador NIR
+    sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);' src/freedreno/ir3/ir3_nir.c
 }
 
 build_lib_for_android(){
@@ -65,9 +77,11 @@ build_lib_for_android(){
     export STRIP=llvm-strip
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
-    export LDFLAGS="-fuse-ld=lld -Wl,--as-needed"
-    export CFLAGS="-O3 -ffast-math -fno-plt -fno-semantic-interposition"
-    export CXXFLAGS="-O3 -ffast-math -fno-plt -fno-semantic-interposition"
+    
+    # Flags Agressivas: -Ofast habilita -ffast-math e outras otimizações que podem quebrar conformidade mas aumentam FPS
+    export LDFLAGS="-fuse-ld=lld -Wl,--as-needed -Wl,--lto-O3"
+    export CFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin"
+    export CXXFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin"
 
     GITHASH=$(git rev-parse --short HEAD)
 
@@ -111,7 +125,8 @@ EOF
         --native-file "native.txt" \
         --prefix "/tmp/turnip-$1" \
         -Dbuildtype=release \
-        -Db_lto=false \
+        -Db_lto=true \
+        -Db_lto_mode=thin \
         -Doptimization=3 \
         -Dstrip=true \
         -Dplatforms=android \
@@ -137,7 +152,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx",
+  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
