@@ -39,10 +39,12 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- HACKS DE PERFORMANCE SUPREMA ---
+    # --- HACKS DE PERFORMANCE SUPREMA E ESTABILIDADE ---
     
-    # 1. Forçar TU_DEBUG=HIPRIO e PERF por padrão
-    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF);/' src/freedreno/vulkan/tu_device.cc
+    # 1. COMBO DE ESTABILIDADE: HIPRIO + PERF + FORCE_CONCURRENT_BINNING + NOLRZ + FLUSHALL (Disabled)
+    # Nota: TU_DEBUG(FLUSHALL) ativado no código original na verdade habilita o flush. Queremos garantir que ele esteja DESATIVADO.
+    # Vamos forçar as flags que trazem performance real.
+    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
     # 2. Hack no IR3: Eficiência de registros em 95%
     sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
@@ -57,10 +59,10 @@ prepare_workdir(){
     sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
     sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
 
-    # 6. ACELERAÇÃO DXVK: Forçar Memória Coerente e Cacheada (Impacto Gigante na tradução DXVK)
+    # 6. ACELERAÇÃO DXVK: Forçar Memória Coerente e Cacheada
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
     
-    # 7. PRE-FETCH AGRESSIVO: Habilitar pre-fetch de descritores por padrão
+    # 7. PRE-FETCH AGRESSIVO
     sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc
 }
 
@@ -164,7 +166,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks + FP16 + DXVK Boost)",
+  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks + FP16 + DXVK Boost + Stability Combo)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
