@@ -50,8 +50,13 @@ prepare_workdir(){
     # 3. Forçar Fast Math e Relaxed Precision no compilador NIR
     sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);' src/freedreno/ir3/ir3_nir.c
 
-    # 4. REMOVER BLOQUEIO DE LTO DA MESA (O erro que causou a falha)
+    # 4. REMOVER BLOQUEIO DE LTO DA MESA
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
+
+    # 5. HACK SUPREMO: Forçar FP16 (MediumP) em todos os inputs/outputs de shaders
+    # Isso força o driver a tratar tudo como 16-bit, dobrando a velocidade de processamento de shaders na Adreno
+    sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff; \/\/ Force all varyings to mediump/' src/freedreno/ir3/ir3_nir.c
+    sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true); \/\/ Force all outputs to mediump/' src/freedreno/ir3/ir3_nir.c
 }
 
 build_lib_for_android(){
@@ -154,7 +159,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks)",
+  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks + FP16 Turbo)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
