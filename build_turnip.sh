@@ -45,11 +45,13 @@ prepare_workdir(){
     sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF);/' src/freedreno/vulkan/tu_device.cc
 
     # 2. Hack no IR3: Aumentar eficiência de registros (Hardcoded para performance)
-    # Modifica ir3_get_gpu_profile para retornar valores mais agressivos
     sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
 
     # 3. Forçar Fast Math e Relaxed Precision no compilador NIR
     sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);' src/freedreno/ir3/ir3_nir.c
+
+    # 4. REMOVER BLOQUEIO DE LTO DA MESA (O erro que causou a falha)
+    sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
 }
 
 build_lib_for_android(){
@@ -78,7 +80,7 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
-    # Flags Agressivas: -Ofast habilita -ffast-math e outras otimizações que podem quebrar conformidade mas aumentam FPS
+    # Flags Agressivas
     export LDFLAGS="-fuse-ld=lld -Wl,--as-needed -Wl,--lto-O3"
     export CFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin"
     export CXXFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin"
