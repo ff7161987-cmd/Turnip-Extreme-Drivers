@@ -25,18 +25,15 @@ jobs:
       - name: Build Drivers
         run: |
           chmod +x build_turnip.sh
-          # A versão será baseada no número da build para fácil identificação
-          export BUILD_VERSION="Extreme-R${{ github.run_number }}"
+          export BUILD_VERSION="26.3.0-R1"
           ./build_turnip.sh
 
       - name: Prepare Final Package
         run: |
           mkdir -p final_package/gen8
-          
-          # Extrair driver Adreno 6xx/7xx/8xx (branch gen8)
           cd final_package/gen8
           unzip ../../turnip_workdir/turnip-gen8-*.zip
-          zip -9 ../../Turnip-Extreme-A6xx-A7xx-A8xx-v26.2.0-R${{ github.run_number }}.zip libvulkan_freedreno.so meta.json
+          zip -9 ../../Turnip-Extreme-A6xx-A7xx-A8xx-v26.3.0-R1.zip libvulkan_freedreno.so meta.json
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -48,13 +45,17 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v26.2.0-R${{ github.run_number }}
-          name: Turnip Extreme Performance v26.2.0-R${{ github.run_number }}
+          tag_name: v26.3.0-R1
+          name: Turnip Extreme Performance v26.3.0-R1
           body: |
-            Driver Turnip Otimizado para Performance Extrema (+15 FPS)
-            - Fast Math Hacked (IR3 Compiler)
-            - Force Sysmem Enabled
-            - Disable Flushall (Performance Boost)
+            Driver Turnip Otimizado para Performance Extrema (Ultimate Build)
+            - Einstein Surgery: Fixed Threads for 8 Cores
+            - Memory Alignment (128/256 bytes)
+            - Barrier Minimization (Reduced Latency)
+            - Aggressive DCE (Dead Code Elimination)
+            - No-Wait Sync (Reduced CPU Overhead)
+            - Fast-Path Blending
+            - Shader Prefetch Boost
             - LTO + Optimization Level 3
             - Suporte Adreno 6xx/7xx/8xx
           files: Turnip-Extreme-*.zip
