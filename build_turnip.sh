@@ -53,23 +53,26 @@ prepare_workdir(){
 
     # --- CIRURGIAS DE PERFORMANCE (THREADS + ALIGNMENT + BARRIERS) ---
     sed -i 's/device->submit_count > 1/true/g' src/freedreno/vulkan/tu_device.cc || true
-    sed -i 's/align(layout->width, 32)/align(layout->width, 128)/g' src/freedreno/fdl/fd6_layout.c || true
-    sed -i 's/align(layout->height, 32)/align(layout->height, 128)/g' src/freedreno/fdl/fd6_layout.c || true
+    
+    # Ajuste de Alinhamento para 64 bytes (Mais estável para ETS 2)
+    sed -i 's/align(layout->width, 32)/align(layout->width, 64)/g' src/freedreno/fdl/fd6_layout.c || true
+    sed -i 's/align(layout->height, 32)/align(layout->height, 64)/g' src/freedreno/fdl/fd6_layout.c || true
+    
     sed -i '/tu_emit_event_write(cmd, &cmd->cs, PC_CCU_FLUSH_COLOR_TS);/d' src/freedreno/vulkan/tu_cmd_buffer.cc || true
     sed -i '/tu_emit_event_write(cmd, &cmd->cs, PC_CCU_FLUSH_DEPTH_TS);/d' src/freedreno/vulkan/tu_cmd_buffer.cc || true
 
-    # --- NOVAS CIRURGIAS AVANÇADAS (DCE + ASYNC + BLENDING + PREFETCH) ---
+    # --- CIRURGIAS AVANÇADAS (ESTABILIZADAS) ---
     
-    # 4. AGGRESSIVE DEAD CODE ELIMINATION (DCE)
+    # 4. AGGRESSIVE DEAD CODE ELIMINATION (DCE) - MANTIDO
     sed -i 's/nir_opt_dce(nir)/nir_opt_dce(nir); nir_opt_dead_cf(nir)/g' src/freedreno/ir3/ir3_nir.c || true
     
-    # 5. NO-WAIT SYNC (Reduce CPU Overhead)
-    sed -i 's/tu_wait_fences(device, 1, &fence, true, timeout)/VK_SUCCESS/g' src/freedreno/vulkan/tu_device.cc || true
+    # 5. NO-WAIT SYNC - REMOVIDO (Causa tela preta no ETS 2)
+    # sed -i 's/tu_wait_fences(device, 1, &fence, true, timeout)/VK_SUCCESS/g' src/freedreno/vulkan/tu_device.cc || true
 
-    # 6. FAST-PATH BLENDING
-    sed -i 's/pipeline->blend.independent_blend_enable = true/pipeline->blend.independent_blend_enable = false/g' src/freedreno/vulkan/tu_pipeline.cc || true
+    # 6. FAST-PATH BLENDING - REMOVIDO (Causa problemas de renderização)
+    # sed -i 's/pipeline->blend.independent_blend_enable = true/pipeline->blend.independent_blend_enable = false/g' src/freedreno/vulkan/tu_pipeline.cc || true
 
-    # 7. SHADER PREFETCH BOOST
+    # 7. SHADER PREFETCH BOOST - MANTIDO
     sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc || true
 
     # --- HACKS ANTERIORES MANTIDOS ---
@@ -186,7 +189,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (Einstein/Tesla Build - v26.3.0 R1 - Ultimate Performance)",
+  "description": "Optimized for A6xx/A7xx/A8xx (Einstein/Tesla Build - v26.3.0 R2 - ETS 2 Fix)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",

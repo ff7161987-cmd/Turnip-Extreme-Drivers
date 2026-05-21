@@ -25,7 +25,7 @@ jobs:
       - name: Build Drivers
         run: |
           chmod +x build_turnip.sh
-          export BUILD_VERSION="26.3.0-R1"
+          export BUILD_VERSION="26.3.0-R2"
           ./build_turnip.sh
 
       - name: Prepare Final Package
@@ -33,7 +33,7 @@ jobs:
           mkdir -p final_package/gen8
           cd final_package/gen8
           unzip ../../turnip_workdir/turnip-gen8-*.zip
-          zip -9 ../../Turnip-Extreme-A6xx-A7xx-A8xx-v26.3.0-R1.zip libvulkan_freedreno.so meta.json
+          zip -9 ../../Turnip-Extreme-A6xx-A7xx-A8xx-v26.3.0-R2.zip libvulkan_freedreno.so meta.json
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -45,17 +45,16 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v26.3.0-R1
-          name: Turnip Extreme Performance v26.3.0-R1
+          tag_name: v26.3.0-R2
+          name: Turnip Extreme Performance v26.3.0-R2
           body: |
-            Driver Turnip Otimizado para Performance Extrema (Ultimate Build)
+            Driver Turnip Otimizado para Performance Extrema (ETS 2 Fix Build)
             - Einstein Surgery: Fixed Threads for 8 Cores
-            - Memory Alignment (128/256 bytes)
+            - Memory Alignment (64 bytes - Stable)
             - Barrier Minimization (Reduced Latency)
             - Aggressive DCE (Dead Code Elimination)
-            - No-Wait Sync (Reduced CPU Overhead)
-            - Fast-Path Blending
             - Shader Prefetch Boost
+            - Reverted: No-Wait Sync & Fast-Path Blending (Fix Black Screen)
             - LTO + Optimization Level 3
             - Suporte Adreno 6xx/7xx/8xx
           files: Turnip-Extreme-*.zip
