@@ -39,32 +39,28 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- HACKS DE PERFORMANCE SUPREMA E ESTABILIDADE ---
+    # --- HACKS DE INOVAÇÃO SUPREMA (EINSTEIN/TESLA) ---
     
-    # 1. COMBO DE ESTABILIDADE: HIPRIO + PERF + FORCE_CONCURRENT_BINNING + NOLRZ
+    # 1. FORCED UBWC (Compressão Universal de Bandwidth)
+    # Força a compressão em quase todos os cenários para economizar largura de banda de memória.
+    sed -i 's/image->ubwc_enabled = false;/image->ubwc_enabled = true; \/\/ Forced UBWC by Einstein Hack/g' src/freedreno/vulkan/tu_image.cc
+
+    # 2. ZERO-LATENCY MEMORY (Heaps Coerentes)
+    # Força o driver a tratar toda a memória como coerente e cacheada, eliminando barreiras de memória lentas.
+    sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
     sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
-    # 2. Hack no IR3: Eficiência de registros em 95%
+    # 3. IR3 ILP BOOST (Paralelismo de Instruções Tesla)
+    # Ajusta o escalonador para preferir instruções que aumentam o paralelismo (ILP).
+    sed -i 's/rank == chosen_rank && chosen->max_delay < n->max_delay/rank == chosen_rank \&\& chosen->max_delay > n->max_delay/g' src/freedreno/ir3/ir3_sched.c
+
+    # --- HACKS ANTERIORES MANTIDOS ---
     sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
-
-    # 3. Forçar Fast Math e Relaxed Precision no NIR
     sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);' src/freedreno/ir3/ir3_nir.c
-
-    # 4. REMOVER BLOQUEIO DE LTO DA MESA
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
-
-    # 5. HACK FP16 (MediumP) Turbo
     sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
     sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
-
-    # 6. ACELERAÇÃO DXVK: Forçar Memória Coerente e Cacheada
-    sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
-    
-    # 7. PRE-FETCH AGRESSIVO
     sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc
-
-    # 8. HACK FINAL: FORCE EARLY Z (Desativando force_late_z em todo o código)
-    # Isso força a GPU a descartar pixels invisíveis o mais cedo possível, economizando processamento.
     sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc
     sed -i 's/shader->fs.lrz.force_late_z = true/shader->fs.lrz.force_late_z = false/g' src/freedreno/vulkan/tu_shader.cc
 }
@@ -169,7 +165,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks + FP16 + DXVK Boost + God Mode)",
+  "description": "Optimized for A6xx/A7xx/A8xx (Einstein/Tesla Build - UBWC + ILP Boost + Zero Latency)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
