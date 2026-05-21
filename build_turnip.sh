@@ -41,9 +41,7 @@ prepare_workdir(){
 
     # --- HACKS DE PERFORMANCE SUPREMA E ESTABILIDADE ---
     
-    # 1. COMBO DE ESTABILIDADE: HIPRIO + PERF + FORCE_CONCURRENT_BINNING + NOLRZ + FLUSHALL (Disabled)
-    # Nota: TU_DEBUG(FLUSHALL) ativado no código original na verdade habilita o flush. Queremos garantir que ele esteja DESATIVADO.
-    # Vamos forçar as flags que trazem performance real.
+    # 1. COMBO DE ESTABILIDADE: HIPRIO + PERF + FORCE_CONCURRENT_BINNING + NOLRZ
     sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
     # 2. Hack no IR3: Eficiência de registros em 95%
@@ -64,6 +62,11 @@ prepare_workdir(){
     
     # 7. PRE-FETCH AGRESSIVO
     sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc
+
+    # 8. HACK FINAL: FORCE EARLY Z (Desativando force_late_z em todo o código)
+    # Isso força a GPU a descartar pixels invisíveis o mais cedo possível, economizando processamento.
+    sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc
+    sed -i 's/shader->fs.lrz.force_late_z = true/shader->fs.lrz.force_late_z = false/g' src/freedreno/vulkan/tu_shader.cc
 }
 
 build_lib_for_android(){
@@ -166,7 +169,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks + FP16 + DXVK Boost + Stability Combo)",
+  "description": "Optimized for A6xx/A7xx/A8xx (LTO + Ofast + IR3 Hacks + FP16 + DXVK Boost + God Mode)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
