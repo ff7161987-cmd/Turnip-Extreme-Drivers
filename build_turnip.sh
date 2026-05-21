@@ -12,7 +12,6 @@ BUILD_VERSION="${BUILD_VERSION:-1.0}"
 run_all(){
     check_deps
     prepare_workdir
-    # Compilando para Adreno 6xx/7xx/8xx usando o branch gen8
     build_lib_for_android gen8
 }
 
@@ -39,40 +38,22 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- HACKS DE INOVAÇÃO SUPREMA (EINSTEIN/TESLA) ---
+    # --- OTIMIZAÇÕES SEGURAS (v26.3.0 R3) ---
     
-    # 1. FORCED UBWC
-    sed -i 's/image->ubwc_enabled = false;/image->ubwc_enabled = true; \/\/ Forced UBWC by Einstein Hack/g' src/freedreno/vulkan/tu_image.cc
-
-    # 2. ZERO-LATENCY MEMORY
+    # 1. ZERO-LATENCY MEMORY (Heaps Coerentes)
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
     sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
-    # 3. IR3 ILP BOOST
+    # 2. IR3 ILP BOOST (Paralelismo de Instruções)
     sed -i 's/rank == chosen_rank && chosen->max_delay < n->max_delay/rank == chosen_rank \&\& chosen->max_delay > n->max_delay/g' src/freedreno/ir3/ir3_sched.c
 
-    # --- CIRURGIAS DE PERFORMANCE (THREADS + ALIGNMENT + BARRIERS) ---
+    # 3. FIXED THREADS FOR 8 CORES (Workload Distribution)
     sed -i 's/device->submit_count > 1/true/g' src/freedreno/vulkan/tu_device.cc || true
-    
-    # Ajuste de Alinhamento para 64 bytes (Mais estável para ETS 2)
-    sed -i 's/align(layout->width, 32)/align(layout->width, 64)/g' src/freedreno/fdl/fd6_layout.c || true
-    sed -i 's/align(layout->height, 32)/align(layout->height, 64)/g' src/freedreno/fdl/fd6_layout.c || true
-    
-    sed -i '/tu_emit_event_write(cmd, &cmd->cs, PC_CCU_FLUSH_COLOR_TS);/d' src/freedreno/vulkan/tu_cmd_buffer.cc || true
-    sed -i '/tu_emit_event_write(cmd, &cmd->cs, PC_CCU_FLUSH_DEPTH_TS);/d' src/freedreno/vulkan/tu_cmd_buffer.cc || true
 
-    # --- CIRURGIAS AVANÇADAS (ESTABILIZADAS) ---
-    
-    # 4. AGGRESSIVE DEAD CODE ELIMINATION (DCE) - MANTIDO
+    # 4. AGGRESSIVE DCE (Dead Code Elimination)
     sed -i 's/nir_opt_dce(nir)/nir_opt_dce(nir); nir_opt_dead_cf(nir)/g' src/freedreno/ir3/ir3_nir.c || true
     
-    # 5. NO-WAIT SYNC - REMOVIDO (Causa tela preta no ETS 2)
-    # sed -i 's/tu_wait_fences(device, 1, &fence, true, timeout)/VK_SUCCESS/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 6. FAST-PATH BLENDING - REMOVIDO (Causa problemas de renderização)
-    # sed -i 's/pipeline->blend.independent_blend_enable = true/pipeline->blend.independent_blend_enable = false/g' src/freedreno/vulkan/tu_pipeline.cc || true
-
-    # 7. SHADER PREFETCH BOOST - MANTIDO
+    # 5. SHADER PREFETCH BOOST
     sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc || true
 
     # --- HACKS ANTERIORES MANTIDOS ---
@@ -189,7 +170,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (Einstein/Tesla Build - v26.3.0 R2 - ETS 2 Fix)",
+  "description": "Optimized for A6xx/A7xx/A8xx (Einstein/Tesla Build - v26.3.0 R3 - Safe Extreme)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
