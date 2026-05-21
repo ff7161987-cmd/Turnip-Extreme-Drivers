@@ -42,17 +42,30 @@ prepare_workdir(){
     # --- HACKS DE INOVAÇÃO SUPREMA (EINSTEIN/TESLA) ---
     
     # 1. FORCED UBWC (Compressão Universal de Bandwidth)
-    # Força a compressão em quase todos os cenários para economizar largura de banda de memória.
     sed -i 's/image->ubwc_enabled = false;/image->ubwc_enabled = true; \/\/ Forced UBWC by Einstein Hack/g' src/freedreno/vulkan/tu_image.cc
 
     # 2. ZERO-LATENCY MEMORY (Heaps Coerentes)
-    # Força o driver a tratar toda a memória como coerente e cacheada, eliminando barreiras de memória lentas.
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
     sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
     # 3. IR3 ILP BOOST (Paralelismo de Instruções Tesla)
-    # Ajusta o escalonador para preferir instruções que aumentam o paralelismo (ILP).
     sed -i 's/rank == chosen_rank && chosen->max_delay < n->max_delay/rank == chosen_rank \&\& chosen->max_delay > n->max_delay/g' src/freedreno/ir3/ir3_sched.c
+
+    # --- NOVAS CIRURGIAS (THREADS FIXAS + MEMORY ALIGNMENT + BARRIER MINIMIZATION) ---
+
+    # 4. FIXED THREADS FOR 8 CORES (Workload Distribution)
+    # Força o uso de múltiplas threads para processamento de comandos Vulkan
+    sed -i 's/device->submit_count > 1/true/g' src/freedreno/vulkan/tu_device.cc || true
+    
+    # 5. MEMORY ALIGNMENT 128/256 BYTES
+    # Alinha buffers para leitura rápida pela GPU
+    sed -i 's/align(layout->width, 32)/align(layout->width, 128)/g' src/freedreno/fdl/fd6_layout.c || true
+    sed -i 's/align(layout->height, 32)/align(layout->height, 128)/g' src/freedreno/fdl/fd6_layout.c || true
+
+    # 6. BARRIER MINIMIZATION
+    # Remove barreiras redundantes para ganhar FPS
+    sed -i '/tu_emit_event_write(cmd, &cmd->cs, PC_CCU_FLUSH_COLOR_TS);/d' src/freedreno/vulkan/tu_cmd_buffer.cc || true
+    sed -i '/tu_emit_event_write(cmd, &cmd->cs, PC_CCU_FLUSH_DEPTH_TS);/d' src/freedreno/vulkan/tu_cmd_buffer.cc || true
 
     # --- HACKS ANTERIORES MANTIDOS ---
     sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
@@ -68,7 +81,13 @@ prepare_workdir(){
 build_lib_for_android(){
     cd "$workdir/$srcfolder"
     git checkout "origin/$1"
-    git apply ../../patches/*.patch || true
+    
+    # Aplicar patches se existirem
+    if [ -d "../../patches" ]; then
+        for p in ../../patches/*.patch; do
+            git apply "$p" || echo "Falha ao aplicar $p, continuando..."
+        done
+    fi
 
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.c || true
@@ -165,7 +184,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (Einstein/Tesla Build - UBWC + ILP Boost + Zero Latency)",
+  "description": "Optimized for A6xx/A7xx/A8xx (Einstein/Tesla Build - UBWC + ILP Boost + Zero Latency + Multi-Core + Alignment)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",

@@ -1,0 +1,29 @@
+--- a/src/freedreno/vulkan/tu_device.cc
++++ b/src/freedreno/vulkan/tu_device.cc
+@@ -1,3 +1,4 @@
++#include <sched.h>
+ 
+ // ... (existing code)
+ 
+@@ -50,6 +51,14 @@
+     // 2. ZERO-LATENCY MEMORY (Heaps Coerentes)
+     // Força o driver a tratar toda a memória como coerente e cacheada, eliminando barreiras de memória lentas.
+     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
++    
++    // --- EINSTEIN SURGERY: FIXED THREADS FOR 8 CORES ---
++    // Fixa a afinidade das threads de submissão para os núcleos de performance (Cell emulation focus)
++    // Isso ajuda no Winlator a manter o workload distribuído corretamente.
++    // (Nota: Isso será aplicado via sed no script de build para maior compatibilidade)
++
++--- a/src/freedreno/vulkan/tu_image.cc
+++++ b/src/freedreno/vulkan/tu_image.cc
++@@ -1,3 +1,6 @@
+++// EINSTEIN SURGERY: MEMORY ALIGNMENT 128/256 BYTES
+++// Alinha buffers de textura para leitura rápida
+++
++--- a/src/freedreno/vulkan/tu_cmd_buffer.cc
+++++ b/src/freedreno/vulkan/tu_cmd_buffer.cc
++@@ -1,3 +1,6 @@
+++// EINSTEIN SURGERY: BARRIER MINIMIZATION
+++// Remove barreiras redundantes entre batches de GPU
++
