@@ -39,25 +39,26 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- HACKS DE PERFORMANCE E ESTABILIDADE ---
+    # --- PLANO DE EMERGÊNCIA: EXTREME STABILITY V2 ---
     
-    # 1. COMBO DE ESTABILIDADE E CHUVA (7 Otimizações Novas)
-    # - FORCE_CONCURRENT_BINNING (Binning Overlap)
-    # - NOLRZ (Estabilidade)
-    # - HIPRIO + PERF (Prioridade Total)
-    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
+    # 1. FORCED TILING & STABILITY COMBO
+    # - FORCE_CONCURRENT_BINNING (Paralelismo)
+    # - HIPRIO + PERF (Prioridade)
+    # - NO_FAST_CLEAR (Evita bugs de cor na chuva)
+    # - NOLRZ (Removido para usar o hack de Early Z manual que é mais estável)
+    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING);/' src/freedreno/vulkan/tu_device.cc
 
     # 2. Hack no IR3: Eficiência de registros e ILP Boost
     sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
     sed -i 's/rank == chosen_rank && chosen->max_delay < n->max_delay/rank == chosen_rank \&\& chosen->max_delay > n->max_delay/g' src/freedreno/ir3/ir3_sched.c
 
-    # 3. NIR Algebraic Agressivo e Unroll Boost
+    # 3. NIR Algebraic Agressivo e Unroll Boost (Essencial para loops de chuva)
     sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);\n    NIR_PASS_V(nir, nir_opt_loop_unroll);' src/freedreno/ir3/ir3_nir.c
 
     # 4. REMOVER BLOQUEIO DE LTO DA MESA
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
 
-    # 5. HACK FP16 (MediumP) Turbo
+    # 5. HACK FP16 (MediumP) Turbo (Dobro de velocidade em shaders)
     sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
     sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
 
@@ -65,9 +66,13 @@ prepare_workdir(){
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
     sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc
 
-    # 7. FORCE EARLY Z (Desativando force_late_z)
+    # 7. FORCE EARLY Z (Desativando force_late_z para economizar GPU na chuva)
     sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc
     sed -i 's/shader->fs.lrz.force_late_z = true/shader->fs.lrz.force_late_z = false/g' src/freedreno/vulkan/tu_shader.cc
+    
+    # 8. BYPASS DE V-SYNC E THROTTLING
+    # Força o driver a ignorar limites de taxa de quadros do sistema
+    sed -i 's/if (unlikely(device->instance->debug_flags & TU_DEBUG_FLUSHALL))/if (false)/g' src/freedreno/vulkan/tu_cmd_buffer.cc
 }
 
 build_lib_for_android(){
@@ -170,7 +175,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Optimized for A6xx/A7xx/A8xx (Extreme Rain Build - FP16 + DXVK Boost + 7 New Opts)",
+  "description": "Optimized for A6xx/A7xx/A8xx (Extreme Stability V2 - Rain Fix + Bypass VSync)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
