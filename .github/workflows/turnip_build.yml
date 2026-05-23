@@ -19,13 +19,45 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build patchelf unzip flex bison git perl python3-pip glslang-tools curl zip
+          sudo apt-get install -y \
+            ninja-build \
+            patchelf \
+            unzip \
+            flex \
+            bison \
+            git \
+            perl \
+            python3-pip \
+            glslang-tools \
+            curl \
+            zip \
+            libclc-dev \
+            libclc-15-dev \
+            llvm-15-dev \
+            clang-15 \
+            libx11-dev \
+            libxext-dev \
+            libxdamage-dev \
+            libxfixes-dev \
+            libxcb-glx0-dev \
+            libxcb-shm0-dev \
+            libx11-xcb-dev \
+            libxcb-dri2-0-dev \
+            libxcb-dri3-dev \
+            libxcb-present-dev \
+            libxshmfence-dev \
+            libxxf86vm-dev \
+            libxrandr-dev \
+            libwayland-dev \
+            wayland-protocols \
+            libdrm-dev \
+            pkg-config
           pip3 install --break-system-packages meson mako
 
       - name: Build Drivers
         run: |
           chmod +x build_turnip.sh
-          export BUILD_VERSION="26.5.0"
+          export BUILD_VERSION="26.5.2-R4"
           ./build_turnip.sh
 
       - name: Prepare Final Package
@@ -33,7 +65,7 @@ jobs:
           mkdir -p final_package/gen8
           cd final_package/gen8
           unzip ../../turnip_workdir/turnip-gen8-*.zip
-          zip -9 ../../Turnip-Extreme-Overdrive-v26.5.0.zip libvulkan_freedreno.so meta.json $([ -f libvulkan_panfrost.so ] && echo "libvulkan_panfrost.so")
+          zip -9 ../../Turnip-Extreme-A6xx-A7xx-A8xx-v26.5.2-R4.zip libvulkan_freedreno.so meta.json
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -45,19 +77,17 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v26.5.0
-          name: Turnip Extreme Performance v26.5.0 (Einstein Overdrive)
+          tag_name: v26.5.2-R4
+          name: Turnip Extreme Performance v26.5.2-R4
           body: |
-            Driver Turnip Otimizado para Performance Extrema (Einstein Overdrive)
-            - 20 Novas Otimizações Específicas para Adreno
-            - Bypass VSync & Force Unlimited FPS
-            - Aggressive Early-Z & Register Allocation Boost
-            - Fast-Path Push Constants & Descriptor Pre-Caching
-            - 16-bit Precision Force (MediumP)
-            - GPU Power State: PERFORMANCE
-            - Async Command Submission
-            - Universal God Mode Base (NIR + Memory Pool)
-            - Suporte Adreno 6xx/7xx/8xx & Mali
+            Driver Turnip Otimizado para Performance Extrema (God Mode V2)
+            - Einstein/Tesla Surgery: Forced FP16 + ILP Boost
+            - DXVK Boost: Memory Coherence & Cached Heaps
+            - Stability Combo: Concurrent Binning + NOLRZ
+            - God Mode: Force Early Z-Test
+            - Extreme Rain Fix: Loop Unroll + Shader Prefetch
+            - LTO + Ofast + Optimization Level 3
+            - Suporte Adreno 6xx/7xx/8xx
           files: Turnip-Extreme-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

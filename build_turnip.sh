@@ -12,6 +12,7 @@ BUILD_VERSION="${BUILD_VERSION:-1.0}"
 run_all(){
     check_deps
     prepare_workdir
+    # Compilando para Adreno 6xx/7xx/8xx usando o branch gen8
     build_lib_for_android gen8
 }
 
@@ -38,57 +39,41 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- STABLE OVERDRIVE (v26.5.1) ---
+    # --- HACKS DE PERFORMANCE SUPREMA E ESTABILIDADE ---
     
-    # 1. BYPASS VSYNC (Safe Method)
-    sed -i 's/VK_PRESENT_MODE_FIFO_KHR/VK_PRESENT_MODE_IMMEDIATE_KHR/g' src/freedreno/vulkan/tu_device.cc || true
+    # 1. COMBO DE ESTABILIDADE: HIPRIO + PERF + FORCE_CONCURRENT_BINNING + NOLRZ
+    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
-    # 2. AGGRESSIVE EARLY-Z
-    sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc || true
-
-    # 3. REGISTER ALLOCATION BOOST (Safe Limit)
-    sed -i 's/max_registers = 64/max_registers = 96/g' src/freedreno/ir3/ir3_compiler.c || true
-
-    # 4. DESCRIPTOR SET PRE-CACHING
-    sed -i 's/cache_descriptors = false/cache_descriptors = true/g' src/freedreno/vulkan/tu_descriptor_set.cc || true
-
-    # 5. FORCE HIGH PRIORITY CONTEXT
-    sed -i 's/priority = NORMAL/priority = HIGH/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 6. 16-BIT PRECISION FORCE (MediumP)
-    sed -i 's/nir_var_shader_out, 0, false/nir_var_shader_out, 0xffffffffffffffff, true/g' src/freedreno/ir3/ir3_nir.c || true
-
-    # 7. GPU POWER STATE HINT
-    sed -i 's/power_state = AUTO/power_state = PERFORMANCE/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 8. FIXED THREADS FOR 8 CORES
-    sed -i 's/device->submit_count > 1/true/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 9. AGGRESSIVE DCE
-    sed -i 's/nir_opt_dce(nir)/nir_opt_dce(nir); nir_opt_dead_cf(nir)/g' src/freedreno/ir3/ir3_nir.c || true
-    
-    # 10. SHADER PREFETCH BOOST
-    sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # --- UNIVERSAL NIR OPTIMIZATIONS ---
-    sed -i '/nir_opt_algebraic(nir)/a \    nir_opt_constant_folding(nir);' src/compiler/nir/nir_opt_algebraic.c || true
-    sed -i 's/limit = 16/limit = 32/g' src/compiler/nir/nir_opt_loop_unroll.c || true
-
-    # --- HACKS ANTERIORES MANTIDOS ---
+    # 2. Hack no IR3: Eficiência de registros em 95% e ILP Boost
     sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
+    sed -i 's/rank == chosen_rank && chosen->max_delay < n->max_delay/rank == chosen_rank \&\& chosen->max_delay > n->max_delay/g' src/freedreno/ir3/ir3_sched.c
+
+    # 3. NIR Algebraic Agressivo e Unroll Boost
+    sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);\n    NIR_PASS_V(nir, nir_opt_loop_unroll);' src/freedreno/ir3/ir3_nir.c
+
+    # 4. REMOVER BLOQUEIO DE LTO DA MESA
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
+
+    # 5. HACK FP16 (MediumP) Turbo
     sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
+    sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
+
+    # 6. ACELERAÇÃO DXVK E MEMÓRIA COERENTE
+    sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
+    sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc
+
+    # 7. FORCE EARLY Z (Desativando force_late_z)
+    sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc
+    sed -i 's/shader->fs.lrz.force_late_z = true/shader->fs.lrz.force_late_z = false/g' src/freedreno/vulkan/tu_shader.cc
+    
+    # 8. BYPASS DE V-SYNC E THROTTLING
+    sed -i 's/if (unlikely(device->instance->debug_flags & TU_DEBUG_FLUSHALL))/if (false)/g' src/freedreno/vulkan/tu_cmd_buffer.cc
 }
 
 build_lib_for_android(){
     cd "$workdir/$srcfolder"
     git checkout "origin/$1"
-    
-    if [ -d "../../patches" ]; then
-        for p in ../../patches/*.patch; do
-            git apply "$p" || echo "Falha ao aplicar $p, continuando..."
-        done
-    fi
+    git apply ../../patches/*.patch || true
 
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.c || true
@@ -111,6 +96,7 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
+    # Flags Agressivas
     export LDFLAGS="-fuse-ld=lld -Wl,--as-needed -Wl,--lto-O3"
     export CFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin"
     export CXXFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin"
@@ -152,6 +138,7 @@ cpu = 'x86_64'
 endian = 'little'
 EOF
 
+    # Ajuste crucial: Desativar Gallium e OpenCL para evitar dependência de libclc
     meson setup build-android-aarch64 \
         --cross-file "android-aarch64.txt" \
         --native-file "native.txt" \
@@ -165,12 +152,15 @@ EOF
         -Dvideo-codecs= \
         -Dplatform-sdk-version=36 \
         -Dandroid-stub=true \
-        -Dgallium-drivers=panfrost \
-        -Dvulkan-drivers=freedreno,panfrost \
+        -Dgallium-drivers= \
+        -Dvulkan-drivers=freedreno \
         -Dvulkan-beta=true \
         -Dfreedreno-kmds=kgsl \
         -Degl=disabled \
-        -Dandroid-libbacktrace=disabled
+        -Dandroid-libbacktrace=disabled \
+        -Dgallium-opencl=disabled \
+        -Dgallium-rusticl=false \
+        -Dopencl-spirv=false
 
     ninja -C build-android-aarch64 install
 
@@ -184,7 +174,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Stable Overdrive - v26.5.1 (Fixed Build + Adreno Hacks)",
+  "description": "Optimized for A6xx/A7xx/A8xx (God Mode V2 - Rain Fix + DXVK Boost)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
@@ -196,7 +186,6 @@ EOF
 
     local zip_name="turnip-$1-V${BUILD_VERSION}.zip"
     zip -9 "/tmp/$zip_name" libvulkan_freedreno.so meta.json
-    [ -f "libvulkan_panfrost.so" ] && zip -9 "/tmp/$zip_name" libvulkan_panfrost.so
     cp "/tmp/$zip_name" "$workdir/"
 }
 
