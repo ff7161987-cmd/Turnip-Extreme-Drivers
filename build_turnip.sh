@@ -110,8 +110,8 @@ build_lib_for_android(){
     
     # Flags GOD MODE
     export LDFLAGS="-fuse-ld=lld -Wl,--as-needed -Wl,--lto-O3"
-    export CFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin -mllvm -adreno-inline-threshold=500"
-    export CXXFLAGS="-Ofast -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin -mllvm -adreno-inline-threshold=500"
+    export CFLAGS="-O3 -ffast-math -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin "
+    export CXXFLAGS="-O3 -ffast-math -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin "
 
     local cver="36"
     [ ! -f "$ndk/aarch64-linux-android${cver}-clang" ] && cver="35"
