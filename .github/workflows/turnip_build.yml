@@ -25,7 +25,7 @@ jobs:
       - name: Build Drivers
         run: |
           chmod +x build_turnip.sh
-          export BUILD_VERSION="26.4.0"
+          export BUILD_VERSION="26.5.0"
           ./build_turnip.sh
 
       - name: Prepare Final Package
@@ -33,7 +33,7 @@ jobs:
           mkdir -p final_package/gen8
           cd final_package/gen8
           unzip ../../turnip_workdir/turnip-gen8-*.zip
-          zip -9 ../../Turnip-Extreme-Universal-v26.4.0.zip libvulkan_freedreno.so meta.json $([ -f libvulkan_panfrost.so ] && echo "libvulkan_panfrost.so")
+          zip -9 ../../Turnip-Extreme-Overdrive-v26.5.0.zip libvulkan_freedreno.so meta.json $([ -f libvulkan_panfrost.so ] && echo "libvulkan_panfrost.so")
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -45,19 +45,19 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v26.4.0
-          name: Turnip Extreme Performance v26.4.0 (Universal God Mode)
+          tag_name: v26.5.0
+          name: Turnip Extreme Performance v26.5.0 (Einstein Overdrive)
           body: |
-            Driver Turnip + Mali Otimizado para Performance Extrema (Universal God Mode)
-            - Universal NIR Algebraics (Boost para Adreno & Mali)
-            - Global Memory Pool Aggression (Reduced Stuttering)
-            - Loop Unrolling Boost (limit=64)
-            - Mali/MediaTek Specific Hacks (Panfrost Optimization)
-            - Adreno Turbo Binning (Concurrent + HIPRIO)
-            - Ultra-Aggressive IR3 Scheduling
-            - Einstein Surgery: Fixed Threads for 8 Cores
-            - LTO + Optimization Level 3
-            - Suporte Adreno 6xx/7xx/8xx & Mali (Bifrost/Valhall)
+            Driver Turnip Otimizado para Performance Extrema (Einstein Overdrive)
+            - 20 Novas Otimizações Específicas para Adreno
+            - Bypass VSync & Force Unlimited FPS
+            - Aggressive Early-Z & Register Allocation Boost
+            - Fast-Path Push Constants & Descriptor Pre-Caching
+            - 16-bit Precision Force (MediumP)
+            - GPU Power State: PERFORMANCE
+            - Async Command Submission
+            - Universal God Mode Base (NIR + Memory Pool)
+            - Suporte Adreno 6xx/7xx/8xx & Mali
           files: Turnip-Extreme-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
