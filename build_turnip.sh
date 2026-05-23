@@ -38,77 +38,46 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- EINSTEIN OVERDRIVE (v26.5.0) - 20 NEW ADRENO OPTIMIZATIONS ---
+    # --- STABLE OVERDRIVE (v26.5.1) ---
     
-    # 1. BYPASS VSYNC & FORCE UNLIMITED FPS
+    # 1. BYPASS VSYNC (Safe Method)
     sed -i 's/VK_PRESENT_MODE_FIFO_KHR/VK_PRESENT_MODE_IMMEDIATE_KHR/g' src/freedreno/vulkan/tu_device.cc || true
 
     # 2. AGGRESSIVE EARLY-Z
     sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc || true
 
-    # 3. REGISTER ALLOCATION BOOST
-    sed -i 's/max_registers = 64/max_registers = 128/g' src/freedreno/ir3/ir3_compiler.c || true
+    # 3. REGISTER ALLOCATION BOOST (Safe Limit)
+    sed -i 's/max_registers = 64/max_registers = 96/g' src/freedreno/ir3/ir3_compiler.c || true
 
-    # 4. FAST-PATH PUSH CONSTANTS
-    sed -i 's/push_constants_size = 128/push_constants_size = 256/g' src/freedreno/vulkan/tu_pipeline.cc || true
-
-    # 5. DISABLE DEBUG OVERHEADS
-    sed -i 's/TU_DEBUG(LOG)/0/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 6. AGGRESSIVE INLINING
-    sed -i 's/nir_opt_inline_functions(nir)/while(nir_opt_inline_functions(nir)) { nir_opt_dce(nir); }/g' src/freedreno/ir3/ir3_nir.c || true
-
-    # 7. DESCRIPTOR SET PRE-CACHING
+    # 4. DESCRIPTOR SET PRE-CACHING
     sed -i 's/cache_descriptors = false/cache_descriptors = true/g' src/freedreno/vulkan/tu_descriptor_set.cc || true
 
-    # 8. FORCE HIGH PRIORITY CONTEXT
+    # 5. FORCE HIGH PRIORITY CONTEXT
     sed -i 's/priority = NORMAL/priority = HIGH/g' src/freedreno/vulkan/tu_device.cc || true
 
-    # 9. OPTIMIZE VERTEX FETCH
-    sed -i 's/vfd_fetch_size = 32/vfd_fetch_size = 64/g' src/freedreno/vulkan/tu_pipeline.cc || true
-
-    # 10. REDUCE CONTEXT SWITCHING
-    sed -i 's/context_switch_threshold = 100/context_switch_threshold = 1000/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 11. FAST CLEAR OPTIMIZATION
-    sed -i 's/allow_fast_clear = false/allow_fast_clear = true/g' src/freedreno/vulkan/tu_image.cc || true
-
-    # 12. IGNORE THERMAL HINTS
-    sed -i 's/thermal_throttling = true/thermal_throttling = false/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 13. 16-BIT PRECISION FORCE (MediumP)
+    # 6. 16-BIT PRECISION FORCE (MediumP)
     sed -i 's/nir_var_shader_out, 0, false/nir_var_shader_out, 0xffffffffffffffff, true/g' src/freedreno/ir3/ir3_nir.c || true
 
-    # 14. PIPELINE CACHE EXPANSION
-    sed -i 's/pipeline_cache_size = 1024/pipeline_cache_size = 4096/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 15. DYNAMIC STATE FAST-PATH
-    sed -i 's/dynamic_state_dirty = true/dynamic_state_dirty = false/g' src/freedreno/vulkan/tu_cmd_buffer.cc || true
-
-    # 16. BARRIER REMOVAL (Non-Critical)
-    sed -i '/tu_emit_event_write(cmd, &cmd->cs, PC_CCU_FLUSH_COLOR_TS);/d' src/freedreno/vulkan/tu_cmd_buffer.cc || true
-
-    # 17. QUERY POOL ACCELERATION
-    sed -i 's/query_pool_size = 128/query_pool_size = 512/g' src/freedreno/vulkan/tu_query.cc || true
-
-    # 18. GPU POWER STATE HINT
+    # 7. GPU POWER STATE HINT
     sed -i 's/power_state = AUTO/power_state = PERFORMANCE/g' src/freedreno/vulkan/tu_device.cc || true
 
-    # 19. INSTRUCTION PACKING
-    sed -i 's/pack_instructions = false/pack_instructions = true/g' src/freedreno/ir3/ir3_compiler.c || true
-
-    # 20. ASYNC COMMAND SUBMISSION
-    sed -i 's/async_submit = false/async_submit = true/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # --- UNIVERSAL GOD MODE BASE ---
-    sed -i '/nir_opt_algebraic(nir)/a \    while(nir_opt_algebraic(nir)) { nir_opt_constant_folding(nir); }' src/compiler/nir/nir_opt_algebraic.c || true
-    sed -i 's/OS_MEMORY_MB /OS_MEMORY_MB * 2 /g' src/util/os_memory.h || true
-    sed -i 's/limit = 16/limit = 64/g' src/compiler/nir/nir_opt_loop_unroll.c || true
-    sed -i 's/TU_DEBUG(NOMULTIPOS)/TU_DEBUG(NOMULTIPOS) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(NOLRZ)/g' src/freedreno/vulkan/tu_device.cc || true
-    sed -i 's/chosen->max_delay < n->max_delay/chosen->max_delay > n->max_delay/g' src/freedreno/ir3/ir3_sched.c || true
-    sed -i 's/rank == chosen_rank/true/g' src/freedreno/ir3/ir3_sched.c || true
+    # 8. FIXED THREADS FOR 8 CORES
     sed -i 's/device->submit_count > 1/true/g' src/freedreno/vulkan/tu_device.cc || true
+
+    # 9. AGGRESSIVE DCE
+    sed -i 's/nir_opt_dce(nir)/nir_opt_dce(nir); nir_opt_dead_cf(nir)/g' src/freedreno/ir3/ir3_nir.c || true
+    
+    # 10. SHADER PREFETCH BOOST
+    sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc || true
+
+    # --- UNIVERSAL NIR OPTIMIZATIONS ---
+    sed -i '/nir_opt_algebraic(nir)/a \    nir_opt_constant_folding(nir);' src/compiler/nir/nir_opt_algebraic.c || true
+    sed -i 's/limit = 16/limit = 32/g' src/compiler/nir/nir_opt_loop_unroll.c || true
+
+    # --- HACKS ANTERIORES MANTIDOS ---
     sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
+    sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
+    sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
 }
 
 build_lib_for_android(){
@@ -215,7 +184,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "Einstein Overdrive - v26.5.0 (20 New Adreno Hacks + Universal God Mode)",
+  "description": "Stable Overdrive - v26.5.1 (Fixed Build + Adreno Hacks)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
