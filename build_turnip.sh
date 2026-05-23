@@ -38,42 +38,41 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- GOD MODE: ESTABILIDADE TOTAL E FPS TRAVADO ---
+    # --- BALANCED EXTREME: FLUIDEZ SEM PESO ---
     
-    # 1. EXTREME RAIN FIX (Loop Unroll + Shader Prefetch)
-    # Força o compilador a desenrolar loops complexos (como gotas de chuva)
-    sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);\n    NIR_PASS_V(nir, nir_opt_loop_unroll);' src/freedreno/ir3/ir3_nir.c
+    # 1. REMOVER LOOP UNROLL AGRESSIVO (Acelera o boot e evita picos de uso)
+    # Mantendo apenas otimizações algébricas seguras
+    sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);' src/freedreno/ir3/ir3_nir.c
 
-    # 2. BYPASS V-SYNC & THROTTLING (No Latency)
-    # Remove verificações de flush que podem causar stuttering
-    sed -i 's/if (unlikely(device->instance->debug_flags & TU_DEBUG_FLUSHALL))/if (false)/g' src/freedreno/vulkan/tu_cmd_buffer.cc || true
-    
-    # 3. ZERO-LATENCY MEMORY (Heaps Coerentes)
+    # 2. ZERO-LATENCY MEMORY (Obrigatório para fluidez)
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
     
-    # 4. IR3 ILP BOOST (95% Register Efficiency)
-    sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){95, 4, 4, true};/' src/freedreno/ir3/ir3_compiler.c
-    sed -i 's/rank == chosen_rank && chosen->max_delay < n->max_delay/rank == chosen_rank \&\& chosen->max_delay > n->max_delay/g' src/freedreno/ir3/ir3_sched.c
+    # 3. AJUSTE DE REGISTRADORES (Evita "engasgos" por falta de memória na GPU)
+    # Voltando para um perfil mais equilibrado (88/8/8)
+    sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){88, 8, 8, true};/' src/freedreno/ir3/ir3_compiler.c
 
-    # 5. CONCURRENT BINNING (Stability Combo)
-    # Força o uso de binning concorrente para evitar quedas bruscas em cidades/chuva
-    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
+    # 4. BINNING INTELIGENTE (HIPRIO + PERF)
+    # Removido FORCE_CONCURRENT_BINNING que pode causar quedas em algumas cenas
+    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
-    # 6. HACK FP16 (MediumP) Turbo
+    # 5. HACK FP16 (Turbo Seguro)
     sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
     sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
 
-    # 7. FORCE EARLY Z (Desativando force_late_z)
+    # 6. FORCE EARLY Z (Melhora performance em cenas complexas)
     sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc || true
     sed -i 's/shader->fs.lrz.force_late_z = true/shader->fs.lrz.force_late_z = false/g' src/freedreno/vulkan/tu_shader.cc || true
 
-    # 8. WORKLOAD DISTRIBUTION (8 Cores Focus)
+    # 7. WORKLOAD DISTRIBUTION (8 Cores Focus)
     sed -i 's/device->submit_count > 1/true/g' src/freedreno/vulkan/tu_device.cc || true
     
-    # 9. SHADER PREFETCH BOOST
+    # 8. SHADER PREFETCH (Reduz Stuttering)
     sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc || true
 
-    # Remover bloqueio de LTO
+    # 9. REMOVER FLUSHALL (Performance Real)
+    sed -i 's/tu_env.debug |= TU_DEBUG_FLUSHALL;/ \/\/ Balanced/g' src/freedreno/vulkan/tu_device.cc || true
+
+    # Remover bloqueio de LTO (Mas vamos usar Thin LTO para ser mais rápido)
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
 }
 
@@ -89,13 +88,6 @@ build_lib_for_android(){
 
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
 
-    # Fixes de compilação
-    sed -i '/a7xx_gen1 = GPUProps(/a \        has_early_preamble = False,' src/freedreno/common/freedreno_devices.py || true
-    sed -i 's/typedef const native_handle_t\* buffer_handle_t;/typedef void\* buffer_handle_t;/g' include/android_stub/cutils/native_handle.h || true
-    sed -i 's/, hnd->handle/, (void \*)hnd->handle/g' src/util/u_gralloc/u_gralloc_fallback.c || true
-    sed -i 's/native_buffer->handle->/((const native_handle_t \*)native_buffer->handle)->/g' src/vulkan/runtime/vk_android.c || true
-    sed -i 's/anb->handle->/((const native_handle_t \*)anb->handle)->/g' src/vulkan/runtime/vk_android.c || true
-
     mkdir -p "$workdir/bin"
     ln -sf "$ndk/clang" "$workdir/bin/cc"
     ln -sf "$ndk/clang++" "$workdir/bin/c++"
@@ -108,10 +100,10 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
-    # Flags GOD MODE
-    export LDFLAGS="-fuse-ld=lld -Wl,--as-needed -Wl,--lto-O3"
-    export CFLAGS="-O3 -ffast-math -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin "
-    export CXXFLAGS="-O3 -ffast-math -march=armv8-a -fno-plt -fno-semantic-interposition -flto=thin "
+    # Flags Balanceadas: -O3 é mais estável que -Ofast para evitar picos de calor/throttling
+    export LDFLAGS="-fuse-ld=lld -Wl,--as-needed"
+    export CFLAGS="-O3 -march=armv8-a -fno-plt -fno-semantic-interposition"
+    export CXXFLAGS="-O3 -march=armv8-a -fno-plt -fno-semantic-interposition"
 
     local cver="36"
     [ ! -f "$ndk/aarch64-linux-android${cver}-clang" ] && cver="35"
@@ -153,8 +145,7 @@ EOF
         --native-file "native.txt" \
         --prefix "/tmp/turnip-$1" \
         -Dbuildtype=release \
-        -Db_lto=true \
-        -Db_lto_mode=thin \
+        -Db_lto=false \
         -Doptimization=3 \
         -Dstrip=true \
         -Dplatforms=android \
@@ -180,7 +171,7 @@ EOF
 {
   "schemaVersion": 1,
   "name": "Turnip Extreme Performance",
-  "description": "GOD MODE V2 - Einstein/Tesla Surgery (Extreme Rain Fix + 60 FPS Fixed)",
+  "description": "Balanced Extreme - Fluidity Focus (Fast Boot + Stable FPS)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
