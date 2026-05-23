@@ -38,41 +38,13 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- BALANCED EXTREME: FLUIDEZ SEM PESO ---
+    # --- TURNIP CLEAN & FAST: APENAS UMA OTIMIZAÇÃO MONSTRA ---
     
-    # 1. REMOVER LOOP UNROLL AGRESSIVO (Acelera o boot e evita picos de uso)
-    # Mantendo apenas otimizações algébricas seguras
-    sed -i '/nir_lower_io_to_temporaries/a \    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);' src/freedreno/ir3/ir3_nir.c
-
-    # 2. ZERO-LATENCY MEMORY (Obrigatório para fluidez)
+    # 1. ZERO-LATENCY MEMORY (Coherent Heaps)
+    # Esta é a única modificação. Ela elimina o gargalo de memória sem pesar o driver.
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
-    
-    # 3. AJUSTE DE REGISTRADORES (Evita "engasgos" por falta de memória na GPU)
-    # Voltando para um perfil mais equilibrado (88/8/8)
-    sed -i 's/return (struct ir3_gpu_profile){85, 8, 8, false};/return (struct ir3_gpu_profile){88, 8, 8, true};/' src/freedreno/ir3/ir3_compiler.c
 
-    # 4. BINNING INTELIGENTE (HIPRIO + PERF)
-    # Removido FORCE_CONCURRENT_BINNING que pode causar quedas em algumas cenas
-    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
-
-    # 5. HACK FP16 (Turbo Seguro)
-    sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
-    sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
-
-    # 6. FORCE EARLY Z (Melhora performance em cenas complexas)
-    sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc || true
-    sed -i 's/shader->fs.lrz.force_late_z = true/shader->fs.lrz.force_late_z = false/g' src/freedreno/vulkan/tu_shader.cc || true
-
-    # 7. WORKLOAD DISTRIBUTION (8 Cores Focus)
-    sed -i 's/device->submit_count > 1/true/g' src/freedreno/vulkan/tu_device.cc || true
-    
-    # 8. SHADER PREFETCH (Reduz Stuttering)
-    sed -i 's/TU_DEBUG(NODESCPREFETCH)/0/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 9. REMOVER FLUSHALL (Performance Real)
-    sed -i 's/tu_env.debug |= TU_DEBUG_FLUSHALL;/ \/\/ Balanced/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # Remover bloqueio de LTO (Mas vamos usar Thin LTO para ser mais rápido)
+    # Remover bloqueio de LTO para compilação limpa
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
 }
 
@@ -86,6 +58,7 @@ build_lib_for_android(){
         done
     fi
 
+    # Limpeza básica necessária para o NDK
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
 
     mkdir -p "$workdir/bin"
@@ -100,10 +73,10 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
-    # Flags Balanceadas: -O3 é mais estável que -Ofast para evitar picos de calor/throttling
-    export LDFLAGS="-fuse-ld=lld -Wl,--as-needed"
-    export CFLAGS="-O3 -march=armv8-a -fno-plt -fno-semantic-interposition"
-    export CXXFLAGS="-O3 -march=armv8-a -fno-plt -fno-semantic-interposition"
+    # Flags de Compilação Padrão (Estabilidade Máxima)
+    export LDFLAGS="-fuse-ld=lld"
+    export CFLAGS="-O3 -march=armv8-a"
+    export CXXFLAGS="-O3 -march=armv8-a"
 
     local cver="36"
     [ ! -f "$ndk/aarch64-linux-android${cver}-clang" ] && cver="35"
@@ -170,8 +143,8 @@ EOF
     cat <<EOF >"meta.json"
 {
   "schemaVersion": 1,
-  "name": "Turnip Extreme Performance",
-  "description": "Balanced Extreme - Fluidity Focus (Fast Boot + Stable FPS)",
+  "name": "Turnip Clean & Fast",
+  "description": "Stock Turnip + Zero-Latency Memory (Maximum Stability)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
