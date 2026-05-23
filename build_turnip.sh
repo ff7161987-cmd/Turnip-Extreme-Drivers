@@ -73,7 +73,7 @@ prepare_workdir(){
 build_lib_for_android(){
     cd "$workdir/$srcfolder"
     git checkout "origin/$1"
-    git apply ../../patches/*.patch || true
+    git apply --ignore-whitespace ../../patches/*.patch || true
 
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
     
@@ -142,7 +142,7 @@ EOF
     meson setup build-android-aarch64 \
         --cross-file "android-aarch64.txt" \
         --native-file "native.txt" \
-        --prefix "/tmp/turnip-$1" \
+        --prefix "\/tmp\/turnip-$1" \
         -Dbuildtype=release \
         -Db_lto=true \
         -Db_lto_mode=thin \
@@ -157,10 +157,7 @@ EOF
         -Dvulkan-beta=true \
         -Dfreedreno-kmds=kgsl \
         -Degl=disabled \
-        -Dandroid-libbacktrace=disabled \
-        -Dgallium-opencl-icd=false \
-         \
-        
+        -Dandroid-libbacktrace=disabled
 
     ninja -C build-android-aarch64 install
 
