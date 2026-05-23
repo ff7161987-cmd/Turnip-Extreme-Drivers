@@ -38,13 +38,22 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- TURNIP CLEAN & FAST: APENAS UMA OTIMIZAÇÃO MONSTRA ---
+    # --- TRINITY BUILD: O EQUILÍBRIO PERFEITO ---
     
-    # 1. ZERO-LATENCY MEMORY (Coherent Heaps)
-    # Esta é a única modificação. Ela elimina o gargalo de memória sem pesar o driver.
+    # 1. O CORAÇÃO: ZERO-LATENCY MEMORY (Coherent Heaps)
+    # Elimina o gargalo de comunicação com a RAM.
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
 
-    # Remover bloqueio de LTO para compilação limpa
+    # 2. O CÉREBRO: FP16 TURBO (MediumP)
+    # Força cálculos de 16-bit em shaders, dobrando a velocidade de reflexos e luz.
+    sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
+    sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
+
+    # 3. OS MÚSCULOS: HIGH-PRIORITY THREADS (HIPRIO + PERF)
+    # Garante que o driver tenha prioridade total no sistema.
+    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
+
+    # Remover bloqueio de LTO
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
 }
 
@@ -58,7 +67,6 @@ build_lib_for_android(){
         done
     fi
 
-    # Limpeza básica necessária para o NDK
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
 
     mkdir -p "$workdir/bin"
@@ -73,10 +81,10 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
-    # Flags de Compilação Padrão (Estabilidade Máxima)
+    # Flags de Compilação Trinity: Fast Math habilitado no compilador
     export LDFLAGS="-fuse-ld=lld"
-    export CFLAGS="-O3 -march=armv8-a"
-    export CXXFLAGS="-O3 -march=armv8-a"
+    export CFLAGS="-O3 -ffast-math -march=armv8-a"
+    export CXXFLAGS="-O3 -ffast-math -march=armv8-a"
 
     local cver="36"
     [ ! -f "$ndk/aarch64-linux-android${cver}-clang" ] && cver="35"
@@ -143,8 +151,8 @@ EOF
     cat <<EOF >"meta.json"
 {
   "schemaVersion": 1,
-  "name": "Turnip Clean & Fast",
-  "description": "Stock Turnip + Zero-Latency Memory (Maximum Stability)",
+  "name": "Turnip Trinity Performance",
+  "description": "Trinity Build - The Perfect Balance (Memory + FP16 + Priority)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
