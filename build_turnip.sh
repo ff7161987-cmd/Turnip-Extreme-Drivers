@@ -76,7 +76,7 @@ build_lib_for_android(){
     git apply ../../patches/*.patch || true
 
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
-    sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.c || true
+    
 
     sed -i '/a7xx_gen1 = GPUProps(/a \        has_early_preamble = False,' src/freedreno/common/freedreno_devices.py || true
     sed -i 's/typedef const native_handle_t\* buffer_handle_t;/typedef void\* buffer_handle_t;/g' include/android_stub/cutils/native_handle.h || true
@@ -158,9 +158,9 @@ EOF
         -Dfreedreno-kmds=kgsl \
         -Degl=disabled \
         -Dandroid-libbacktrace=disabled \
-        -Dgallium-opencl=disabled \
-        -Dgallium-rusticl=false \
-        -Dopencl-spirv=false
+        -Dgallium-opencl-icd=false \
+         \
+        
 
     ninja -C build-android-aarch64 install
 
