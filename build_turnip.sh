@@ -38,24 +38,25 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- INOVAÇÃO: BYPASS DE THROTTLING & ASYNC SUBMISSION ---
+    # --- UNIVERSAL EXTREME (6xx/7xx/8xx) + MEMORY BUS TURBO ---
     
-    # 1. KGSL REAL-TIME PRIORITY (Bypass de Throttling)
-    # Força o kernel a tratar o Turnip como prioridade máxima de sistema
+    # 1. MEMORY BUS TURBO (Aproveita os 12GB de RAM e largura de banda)
+    # Aumenta o tamanho dos buffers de transferência para nunca deixar a GPU esperando
+    sed -i 's/TU_DEBUG(NOMULTIPOS)/TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(FORCE_CONCURRENT_BINNING) | TU_DEBUG(NOLRZ)/g' src/freedreno/vulkan/tu_device.cc || true
+    
+    # 2. KGSL PRIORITY 0 (Bypass Throttling para todos os Adrenos)
     sed -i 's/KGSL_CONTEXT_PRIORITY_MAX/0/g' src/freedreno/vulkan/tu_knl_kgsl.cc || true
     sed -i 's/submit.priority = .*/submit.priority = 0;/g' src/freedreno/vulkan/tu_knl_kgsl.cc || true
 
-    # 2. ASYNC SUBMISSION (No-Wait Execution)
-    # Remove barreiras de sincronização que causam esperas desnecessárias da CPU
-    sed -i 's/tu_device_wait_idle(device)/VK_SUCCESS/g' src/freedreno/vulkan/tu_device.cc || true
-    sed -i 's/tu_wait_fence/VK_SUCCESS \/\/ tu_wait_fence/g' src/freedreno/vulkan/tu_device.cc || true
-
-    # 3. ZERO-LATENCY MEMORY (Base Fundamental)
-    sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
-
-    # 4. FP16 TURBO (Para performance de Shaders na chuva)
+    # 3. FP16 TURBO (Essencial para performance na chuva/reflexos)
     sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
     sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
+
+    # 4. ZERO-LATENCY MEMORY (Coherent Heaps)
+    sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
+
+    # 5. ASYNC SUBMISSION (No-Wait)
+    sed -i 's/tu_device_wait_idle(device)/VK_SUCCESS/g' src/freedreno/vulkan/tu_device.cc || true
 
     # Remover bloqueio de LTO
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
@@ -85,7 +86,7 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
-    # Flags de Compilação de Alta Performance
+    # Flags de Compilação Universal: -O3 + Fast Math
     export LDFLAGS="-fuse-ld=lld"
     export CFLAGS="-O3 -ffast-math -march=armv8-a"
     export CXXFLAGS="-O3 -ffast-math -march=armv8-a"
@@ -155,8 +156,8 @@ EOF
     cat <<EOF >"meta.json"
 {
   "schemaVersion": 1,
-  "name": "Turnip Innovation Build",
-  "description": "Innovation Build - KGSL Priority + Async Submission (Bypass Throttling)",
+  "name": "Turnip Universal Extreme",
+  "description": "Universal Build (6xx/7xx/8xx) - Memory Bus Turbo + KGSL Priority",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
