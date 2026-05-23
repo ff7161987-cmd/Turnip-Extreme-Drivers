@@ -38,20 +38,24 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- TRINITY BUILD: O EQUILÍBRIO PERFEITO ---
+    # --- INOVAÇÃO: BYPASS DE THROTTLING & ASYNC SUBMISSION ---
     
-    # 1. O CORAÇÃO: ZERO-LATENCY MEMORY (Coherent Heaps)
-    # Elimina o gargalo de comunicação com a RAM.
+    # 1. KGSL REAL-TIME PRIORITY (Bypass de Throttling)
+    # Força o kernel a tratar o Turnip como prioridade máxima de sistema
+    sed -i 's/KGSL_CONTEXT_PRIORITY_MAX/0/g' src/freedreno/vulkan/tu_knl_kgsl.cc || true
+    sed -i 's/submit.priority = .*/submit.priority = 0;/g' src/freedreno/vulkan/tu_knl_kgsl.cc || true
+
+    # 2. ASYNC SUBMISSION (No-Wait Execution)
+    # Remove barreiras de sincronização que causam esperas desnecessárias da CPU
+    sed -i 's/tu_device_wait_idle(device)/VK_SUCCESS/g' src/freedreno/vulkan/tu_device.cc || true
+    sed -i 's/tu_wait_fence/VK_SUCCESS \/\/ tu_wait_fence/g' src/freedreno/vulkan/tu_device.cc || true
+
+    # 3. ZERO-LATENCY MEMORY (Base Fundamental)
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
 
-    # 2. O CÉREBRO: FP16 TURBO (MediumP)
-    # Força cálculos de 16-bit em shaders, dobrando a velocidade de reflexos e luz.
+    # 4. FP16 TURBO (Para performance de Shaders na chuva)
     sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
     sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
-
-    # 3. OS MÚSCULOS: HIGH-PRIORITY THREADS (HIPRIO + PERF)
-    # Garante que o driver tenha prioridade total no sistema.
-    sed -i 's/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);/uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) | TU_DEBUG(HIPRIO) | TU_DEBUG(PERF) | TU_DEBUG(NOLRZ);/' src/freedreno/vulkan/tu_device.cc
 
     # Remover bloqueio de LTO
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
@@ -81,7 +85,7 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
-    # Flags de Compilação Trinity: Fast Math habilitado no compilador
+    # Flags de Compilação de Alta Performance
     export LDFLAGS="-fuse-ld=lld"
     export CFLAGS="-O3 -ffast-math -march=armv8-a"
     export CXXFLAGS="-O3 -ffast-math -march=armv8-a"
@@ -151,8 +155,8 @@ EOF
     cat <<EOF >"meta.json"
 {
   "schemaVersion": 1,
-  "name": "Turnip Trinity Performance",
-  "description": "Trinity Build - The Perfect Balance (Memory + FP16 + Priority)",
+  "name": "Turnip Innovation Build",
+  "description": "Innovation Build - KGSL Priority + Async Submission (Bypass Throttling)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
