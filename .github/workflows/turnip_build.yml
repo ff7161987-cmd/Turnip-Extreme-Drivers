@@ -1,21 +1,16 @@
 name: Build Turnip Extreme Performance
-
 on:
   workflow_dispatch:
   push:
     branches: [ master ]
-
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -31,10 +26,9 @@ jobs:
             glslang-tools \
             curl \
             zip \
-            libclc-dev \
-            libclc-15-dev \
-            llvm-15-dev \
-            clang-15 \
+            libclc-18-dev \
+            llvm-18-dev \
+            clang-18 \
             libx11-dev \
             libxext-dev \
             libxdamage-dev \
@@ -53,26 +47,22 @@ jobs:
             libdrm-dev \
             pkg-config
           pip3 install --break-system-packages meson mako
-
       - name: Build Drivers
         run: |
           chmod +x build_turnip.sh
           export BUILD_VERSION="26.5.2-R4"
           ./build_turnip.sh
-
       - name: Prepare Final Package
         run: |
           mkdir -p final_package/gen8
           cd final_package/gen8
           unzip ../../turnip_workdir/turnip-gen8-*.zip
           zip -9 ../../Turnip-Extreme-A6xx-A7xx-A8xx-v26.5.2-R4.zip libvulkan_freedreno.so meta.json
-
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Turnip-Extreme-Driver
           path: Turnip-Extreme-*.zip
-
       - name: Create Release
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
