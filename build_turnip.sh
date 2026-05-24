@@ -38,10 +38,23 @@ prepare_workdir(){
     
     echo "#define TUGEN8_DRV_VERSION \"\"" > ./src/freedreno/vulkan/tu_version.h
 
-    # --- THE PURE FAST MATH: VOLTANDO AO QUE FUNCIONA ---
+    # --- HYBRID EXTREME: FP16 TURBO + FORCED SYSMEM ---
     
-    # 1. ZERO-LATENCY MEMORY (O Coração da Fluidez)
+    # 1. FP16 TURBO (MediumP)
+    # Acelera luz e reflexos no Sleeping Dogs e ETS 2
+    sed -i 's/uint64_t mediump_varyings = s->info.linear_varyings |/uint64_t mediump_varyings = 0xffffffffffffffff;/' src/freedreno/ir3/ir3_nir.c
+    sed -i 's/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0, false);/NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_out, 0xffffffffffffffff, true);/' src/freedreno/ir3/ir3_nir.c
+
+    # 2. FORCED SYSMEM (Bypass GMEM)
+    # Estabiliza o FPS em mundos abertos aproveitando os 12GB de RAM
+    sed -i '/use_sysmem_rendering(struct tu_cmd_buffer \*cmd,/a \   return true;' src/freedreno/vulkan/tu_cmd_buffer.cc || true
+
+    # 3. ZERO-LATENCY MEMORY (Coherent Heaps)
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
+
+    # 4. LRZ FAST CLEAR & OPTIMIZATIONS
+    sed -i 's/force_late_z = true/force_late_z = false/g' src/freedreno/vulkan/tu_lrz.cc || true
+    sed -i 's/shader->fs.lrz.force_late_z = true/shader->fs.lrz.force_late_z = false/g' src/freedreno/vulkan/tu_shader.cc || true
 
     # Remover bloqueio de LTO
     sed -i '/error(.Building Mesa with LTO is not supported./d' meson.build
@@ -57,7 +70,6 @@ build_lib_for_android(){
         done
     fi
 
-    # Limpeza necessária
     sed -i 's/ (%s)//g' src/freedreno/vulkan/tu_device.cc || true
 
     mkdir -p "$workdir/bin"
@@ -72,7 +84,7 @@ build_lib_for_android(){
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     
-    # Flags PURE FAST: Apenas O3 e Fast Math para velocidade bruta sem instabilidade
+    # Flags de Compilação: O3 + Fast Math
     export LDFLAGS="-fuse-ld=lld"
     export CFLAGS="-O3 -ffast-math -march=armv8-a"
     export CXXFLAGS="-O3 -ffast-math -march=armv8-a"
@@ -142,8 +154,8 @@ EOF
     cat <<EOF >"meta.json"
 {
   "schemaVersion": 1,
-  "name": "Turnip Pure Fast Math",
-  "description": "Pure Build - Stock Turnip + Zero-Latency + Fast Math (The Best Balance)",
+  "name": "Turnip Hybrid Extreme",
+  "description": "Hybrid Build - FP16 Turbo + Forced Sysmem (Sleeping Dogs & ETS 2 Focus)",
   "author": "ff7161987-cmd",
   "packageVersion": "1",
   "vendor": "Mesa",
