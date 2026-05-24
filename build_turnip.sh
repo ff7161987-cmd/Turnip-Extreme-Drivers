@@ -47,7 +47,7 @@ prepare_workdir(){
 
     # 2. FORCED SYSMEM (Bypass GMEM)
     # Estabiliza o FPS em mundos abertos aproveitando os 12GB de RAM
-    sed -i '/use_sysmem_rendering(struct tu_cmd_buffer \*cmd,/a \   return true;' src/freedreno/vulkan/tu_cmd_buffer.cc || true
+    sed -i '/use_sysmem_rendering(struct tu_cmd_buffer \*cmd,/a \   ' src/freedreno/vulkan/tu_cmd_buffer.cc || true
 
     # 3. ZERO-LATENCY MEMORY (Coherent Heaps)
     sed -i 's/dev->physical_device->has_cached_coherent_memory/true/g' src/freedreno/vulkan/tu_device.cc
